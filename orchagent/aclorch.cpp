@@ -1791,12 +1791,17 @@ void AclRuleMirror::onUpdate(SubjectType type, void *cntx)
     }
 }
 
-AclTable::AclTable(AclOrch *pAclOrch, string id) noexcept : m_pAclOrch(pAclOrch), id(id)
+AclTable::AclTable(AclOrch *pAclOrch, string id) noexcept :
+ m_pAclOrch(pAclOrch),
+ id(id),
+ udf_group_oid(SAI_NULL_OBJECT_ID)
 {
 
 }
 
-AclTable::AclTable(AclOrch *pAclOrch) noexcept : m_pAclOrch(pAclOrch)
+AclTable::AclTable(AclOrch *pAclOrch) noexcept :
+ m_pAclOrch(pAclOrch),
+ udf_group_oid(SAI_NULL_OBJECT_ID)
 {
 
 }
@@ -1967,6 +1972,15 @@ bool AclTable::create()
     acl_stage = (stage == ACL_STAGE_INGRESS) ? SAI_ACL_STAGE_INGRESS : SAI_ACL_STAGE_EGRESS;
     attr.value.s32 = acl_stage;
     table_attrs.push_back(attr);
+
+    // Set UDF
+    if (udf_group_oid != SAI_NULL_OBJECT_ID)
+    {
+        // TODO: Confirm if multi UDF group is supported in single ACL table
+        attr.id = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN;
+        attr.value.oid = udf_group_oid;
+        table_attrs.push_back(attr);
+    }
 
     sai_status_t status = sai_acl_api->create_acl_table(&m_oid, gSwitchId, (uint32_t)table_attrs.size(), table_attrs.data());
     if (status != SAI_STATUS_SUCCESS)
@@ -3138,7 +3152,7 @@ void AclOrch::queryAclActionAttrEnumValues(const string &action_name,
 }
 
 AclOrch::AclOrch(vector<TableConnector>& connectors, DBConnector* stateDb, SwitchOrch *switchOrch,
-        PortsOrch *portOrch, MirrorOrch *mirrorOrch, NeighOrch *neighOrch, RouteOrch *routeOrch, DTelOrch *dtelOrch) :
+        PortsOrch *portOrch, MirrorOrch *mirrorOrch, NeighOrch *neighOrch, RouteOrch *routeOrch, DTelOrch *dtelOrch, UDFOrch *udfOrch) :
         Orch(connectors),
         m_aclStageCapabilityTable(stateDb, STATE_ACL_STAGE_CAPABILITY_TABLE_NAME),
         m_switchOrch(switchOrch),
@@ -3146,6 +3160,7 @@ AclOrch::AclOrch(vector<TableConnector>& connectors, DBConnector* stateDb, Switc
         m_neighOrch(neighOrch),
         m_routeOrch(routeOrch),
         m_dTelOrch(dtelOrch),
+        m_UDFOrch(udfOrch),
         m_flex_counter_manager(
             ACL_COUNTER_FLEX_COUNTER_GROUP,
             StatsMode::READ,
@@ -3918,6 +3933,16 @@ void AclOrch::doAclTableTask(Consumer &consumer)
                     // TODO: validate control plane ACL table has this attribute
                     continue;
                 }
+                else if (attr_name == ACL_TABLE_UDF_GROUP)
+                {
+                    if (!processAclTableUDF(attr_value, newTable))
+                    {
+                        SWSS_LOG_ERROR("Failed to process ACL table UDF group id %s for table %s",
+                                    attr_value.c_str(), table_id.c_str());
+                        bAllAttributesOk = false;
+                        break;
+                    }
+                }
                 else
                 {
                     SWSS_LOG_ERROR("Unknown table attribute '%s'", attr_name.c_str());
@@ -4214,6 +4239,20 @@ bool AclOrch::processAclTablePorts(string portList, AclTable &aclTable)
         aclTable.portSet.emplace(alias);
     }
 
+    return true;
+}
+
+bool AclOrch::processAclTableUDF(string udf_group_name, AclTable &aclTable)
+{
+    SWSS_LOG_ENTER();
+    UDFGroup udf_group;
+    if (!m_UDFOrch->getUDFGroupByName(udf_group_name, udf_group))
+    {
+        SWSS_LOG_ERROR("Failed to get UDF group %s for ACL table %s",
+                        udf_group_name.c_str(), aclTable.id.c_str());
+        return false;
+    }
+    aclTable.udf_group_oid = udf_group.oid;
     return true;
 }
 

@@ -104,8 +104,8 @@ void UDFOrch::removeUDFObjectByName(string name)
     }
 }
 
-UDFOrch::UDFOrch(DBConnector* db, string tableName):
-    Orch(db, tableName)
+UDFOrch::UDFOrch(DBConnector* db, const vector<string> &tableNames):
+    Orch(db, tableNames)
 {
 
 }
@@ -203,11 +203,14 @@ void UDFOrch::doUDFGroupTask(Consumer &consumer)
                 {
                     sai_object_id_t udf_group_oid;
 
-                    CHECK_ERROR_AND_LOG_AND_RETURN(sai_udf_api->create_udf_group(&udf_group_oid, gSwitchId,
+                    if (SAI_STATUS_SUCCESS != sai_udf_api->create_udf_group(&udf_group_oid, gSwitchId,
                                                                             (uint32_t)udf_group.udf_group_attrs.size(),
-                                                                            udf_group.udf_group_attrs.data()),
-                                            "Failed to create UDF group " << group_name
-                                                                            << " from SAI call sai_udf_api->create_udf_group");
+                                                                            udf_group.udf_group_attrs.data()))
+                    {
+                        SWSS_LOG_ERROR("Failed to create UDF group %s  from SAI call sai_udf_api->create_udf_group", group_name.c_str());
+                        return;
+                    }
+                                            
                     udf_group.oid = udf_group_oid;
                     m_UDFGroupTable.emplace(group_name, udf_group);
                     SWSS_LOG_INFO("Suceeded to create UDF group %s with object ID %s ", group_name.c_str(),
@@ -227,8 +230,12 @@ void UDFOrch::doUDFGroupTask(Consumer &consumer)
                 continue;
             }
  
-            CHECK_ERROR_AND_LOG_AND_RETURN(sai_udf_api->remove_udf_group(udf_group.oid),
-                                   "Failed to remove UDF group with id " << udf_group_id);
+            if (SAI_STATUS_SUCCESS != sai_udf_api->remove_udf_group(udf_group.oid))
+            {
+                SWSS_LOG_ERROR("Failed to remove UDF group with id %s", group_name.c_str());
+                return;
+            }
+                                   
             removeUDFGroupByName(group_name);
         }
         else
@@ -260,7 +267,6 @@ void UDFOrch::doUDFMatchTask(Consumer &consumer)
             }
             else
             {
-                bool valid = true;
                 // Scan all attributes
                 for (auto itp : kfvFieldsValues(t))
                 {
@@ -285,11 +291,14 @@ void UDFOrch::doUDFMatchTask(Consumer &consumer)
                 }
                 else
                 {
-                    CHECK_ERROR_AND_LOG_AND_RETURN(sai_udf_api->create_udf_match(&udf_match.oid, gSwitchId, 0, udf_match.udf_match_attrs.data()),
-                                                    "Failed to create UDF match %s from SAI call sai_udf_api->create_udf_match" << udf_match_name);
+                    if (SAI_STATUS_SUCCESS != sai_udf_api->create_udf_match(&(udf_match.oid), gSwitchId, 0, udf_match.udf_match_attrs.data()))
+                    {
+                        SWSS_LOG_ERROR("Failed to create UDF match %s from SAI call sai_udf_api->create_udf_match", udf_match_name.c_str());
+                        return;
+                    }
                     m_UDFMatchTable.emplace(udf_match_name, udf_match);
                     SWSS_LOG_INFO("Suceeded to create UDF match %s with object ID %s ", udf_match_name.c_str(),
-                                    sai_serialize_object_id(udf_match_oid).c_str());
+                                    sai_serialize_object_id(udf_match.oid).c_str());
                 }
             }
         }
@@ -304,8 +313,12 @@ void UDFOrch::doUDFMatchTask(Consumer &consumer)
                 continue;
             }
  
-            CHECK_ERROR_AND_LOG_AND_RETURN(sai_udf_api->remove_udf_match(udf_match.oid),
-                                   "Failed to remove UDF match with name " << udf_match_name);
+            if (SAI_STATUS_SUCCESS != sai_udf_api->remove_udf_match(udf_match.oid))
+            {
+                SWSS_LOG_ERROR("Failed to remove UDF match with name %s", udf_match_name.c_str());
+                return;
+            }
+                                   
             removeUDFMatchByName(udf_match_name);
         }
         else
@@ -347,7 +360,7 @@ void UDFOrch::doUDFObjectTask(Consumer &consumer)
 
                     auto iter = udf_object_attr_table.find(attr_name);
                     if (iter == udf_object_attr_table.end()) {
-                        SWSS_LOG_WARN("Unsupported UDF attribute found %s in %s", attr_name.c_str(), udf_object_name);
+                        SWSS_LOG_WARN("Unsupported UDF attribute found %s in %s", attr_name.c_str(), udf_object_name.c_str());
                         continue;
                     }
                     sai_attribute_t attr;
@@ -358,11 +371,11 @@ void UDFOrch::doUDFObjectTask(Consumer &consumer)
                     {
                         if (!getUDFGroupByName(attr_value, udf_group))
                         {
-                            SWSS_LOG_ERROR("The referenced UDF group is not found %s for %s", attr_value.c_str(), udf_object_name);
+                            SWSS_LOG_ERROR("The referenced UDF group is not found %s for %s", attr_value.c_str(), udf_object_name.c_str());
                             valid = false;
                             break;
                         }
-                        attr.value.s32 = udf_group.oid;
+                        attr.value.oid = udf_group.oid;
                     }
 
                     UDFMatch udf_match;
@@ -370,11 +383,11 @@ void UDFOrch::doUDFObjectTask(Consumer &consumer)
                     {
                         if (!getUDFMatchByName(attr_value, udf_match))
                         {
-                            SWSS_LOG_ERROR("The referenced UDF match is not found %s for %s", attr_value.c_str(), udf_object_name);
+                            SWSS_LOG_ERROR("The referenced UDF match is not found %s for %s", attr_value.c_str(), udf_object_name.c_str());
                             valid = false;
                             break;
                         }
-                        attr.value.s32 = udf_match.oid;
+                        attr.value.oid = udf_match.oid;
                     }
 
                     if (UDF_ATTR_BASE == attr_name)
@@ -382,7 +395,7 @@ void UDFOrch::doUDFObjectTask(Consumer &consumer)
                         auto offset_iter = udf_offset_base_table.find(attr_value);
                         if (offset_iter == udf_offset_base_table.end())
                         {
-                            SWSS_LOG_ERROR("Unsupported UDF offset base found %s for %s", attr_value.c_str(), udf_object_name);
+                            SWSS_LOG_ERROR("Unsupported UDF offset base found %s for %s", attr_value.c_str(), udf_object_name.c_str());
                             valid = false;
                             break;
                         }
@@ -397,14 +410,18 @@ void UDFOrch::doUDFObjectTask(Consumer &consumer)
                 }
                 if (valid)
                 {
-                    CHECK_ERROR_AND_LOG_AND_RETURN(sai_udf_api->create_udf(&udf_object.oid,
+                    if (SAI_STATUS_SUCCESS != sai_udf_api->create_udf(&(udf_object.oid),
                                                                             gSwitchId,
                                                                             (uint32_t)udf_object.udf_object_attrs.size(),
-                                                                            udf_object.udf_match_attrs.data()),
-                                                    "Failed to create UDF object %s from SAI call sai_udf_api->create_udf_match" << udf_object_name);
+                                                                            udf_object.udf_object_attrs.data()))
+                    {
+                        SWSS_LOG_ERROR("Failed to create UDF object %s from SAI call sai_udf_api->create_udf_match", udf_object_name.c_str());
+                        return;
+                    }
+                                                    
                     m_UDFObjectTable.emplace(udf_object_name, udf_object);
                     SWSS_LOG_INFO("Suceeded to create UDF object %s with object ID %s ", udf_object_name.c_str(),
-                                    sai_serialize_object_id(udf_match_oid).c_str());
+                                    sai_serialize_object_id(udf_object.oid).c_str());
                 }
             }
         }
