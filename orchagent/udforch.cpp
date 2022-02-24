@@ -104,8 +104,8 @@ void UDFOrch::removeUDFObjectByName(string name)
     }
 }
 
-UDFOrch::UDFOrch(DBConnector* db, string tableName):
-    Orch(db, tableName)
+UDFOrch::UDFOrch(DBConnector* db, const vector<string> &tableNames):
+    Orch(db, tableNames)
 {
 
 }

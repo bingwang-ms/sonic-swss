@@ -58,7 +58,7 @@ class UDFObject {
 
 class UDFOrch : public Orch {
     public:
-        UDFOrch(DBConnector* db, string tableName);
+        UDFOrch(DBConnector* db, const vector<string> &tableNames);
         virtual ~UDFOrch();
         
         bool getUDFObjectByName(string name, UDFObject &udf_object) const;

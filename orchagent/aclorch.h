@@ -14,6 +14,7 @@
 #include "portsorch.h"
 #include "mirrororch.h"
 #include "dtelorch.h"
+#include "udforch.h"
 #include "observer.h"
 #include "flex_counter_manager.h"
 
@@ -430,6 +431,7 @@ public:
     set<string> portSet;
     // Set to store the not configured ACL table port alias
     set<string> pendingPortSet;
+    sai_object_id_t udf_group_oid;
 
 private:
     sai_object_id_t m_oid = SAI_NULL_OBJECT_ID;
@@ -446,7 +448,8 @@ public:
             MirrorOrch              *mirrorOrch,
             NeighOrch               *neighOrch,
             RouteOrch               *routeOrch,
-            DTelOrch                *m_dTelOrch = NULL);
+            DTelOrch                *m_dTelOrch = nullptr,
+            UDFOrch                 *udf_orch = nullptr);
     ~AclOrch();
     void update(SubjectType, void *);
 
@@ -464,6 +467,7 @@ public:
     NeighOrch *m_neighOrch;
     RouteOrch *m_routeOrch;
     DTelOrch *m_dTelOrch;
+    UDFOrch *m_UDFOrch;
 
     bool addAclTable(AclTable &aclTable);
     bool removeAclTable(string table_id);
@@ -528,6 +532,7 @@ private:
     bool processAclTableStage(string stage, acl_stage_type_t &acl_stage);
     bool processAclTableType(string type, string &out_table_type);
     bool processAclTablePorts(string portList, AclTable &aclTable);
+    bool processAclTableUDF(string udf_group_name, AclTable &aclTable);
     bool validateAclTable(AclTable &aclTable);
     bool updateAclTablePorts(AclTable &newTable, AclTable &curTable);
     void getAddDeletePorts(AclTable    &newT,
