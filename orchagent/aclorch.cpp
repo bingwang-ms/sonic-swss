@@ -4248,7 +4248,7 @@ bool AclOrch::processAclTableUDF(string udf_group_name, AclTable &aclTable)
     UDFGroup udf_group;
     if (!m_UDFOrch->getUDFGroupByName(udf_group_name, udf_group))
     {
-        SWSS_LOG_ERROR("Failed to get UDF group % for ACL table %s",
+        SWSS_LOG_ERROR("Failed to get UDF group %s for ACL table %s",
                         udf_group_name.c_str(), aclTable.id.c_str());
         return false;
     }

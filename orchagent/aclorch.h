@@ -431,7 +431,7 @@ public:
     set<string> portSet;
     // Set to store the not configured ACL table port alias
     set<string> pendingPortSet;
-    sai_object_id_t udf_group_oid;
+    sai_object_id_t udf_group_oid = SAI_NULL_OBJECT_ID;
 
 private:
     sai_object_id_t m_oid = SAI_NULL_OBJECT_ID;

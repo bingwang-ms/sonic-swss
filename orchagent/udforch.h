@@ -36,22 +36,21 @@ using std::vector;
 class UDFGroup {
     public:
         UDFGroup() = default;
-        sai_attr_id_t oid;
+        sai_object_id_t oid;
         vector<sai_attribute_t> udf_group_attrs;
 };
 
 class UDFMatch {
     public:
         UDFMatch() = default;
-        sai_attr_id_t oid;
+        sai_object_id_t oid;
         vector<sai_attribute_t> udf_match_attrs;
 };
 
 class UDFObject {
     public:
         UDFObject() = default;
-
-        sai_attr_id_t oid;
+        sai_object_id_t oid;
         vector<sai_attribute_t> udf_object_attrs;
 };
 
