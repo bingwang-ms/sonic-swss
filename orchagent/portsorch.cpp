@@ -1392,12 +1392,14 @@ void PortsOrch::increasePortRefCount(const string &alias)
 {
     assert (m_port_ref_count.find(alias) != m_port_ref_count.end());
     m_port_ref_count[alias]++;
+    SWSS_LOG_NOTICE("Incresed ref count for %s . New count is %d", alias.c_str(), m_port_ref_count[alias]);
 }
 
 void PortsOrch::decreasePortRefCount(const string &alias)
 {
     assert (m_port_ref_count.find(alias) != m_port_ref_count.end());
     m_port_ref_count[alias]--;
+    SWSS_LOG_NOTICE("Decresed ref count for %s . New count is %d", alias.c_str(), m_port_ref_count[alias]);
 }
 
 void PortsOrch::increaseBridgePortRefCount(Port &port)
